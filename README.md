@@ -76,6 +76,8 @@ bash bash/test_wllava.sh
 bash bash/test_wollava.sh
 ```
 Replace the placeholders `[pretrained_model_name_or_path]`, `[transformer_model_name_or_path]`, `[image_path]`, `[output_dir]`, and `[prompt_path]` with their respective paths before running the command.
+The evaluation script (`test_wollava.sh`) is designed to run with pre-generated prompts in order to reduce the computational cost of LLaVA during testing.
+We provide our pre-generated and processed prompts in the following directory [`preset/prompts`](preset/prompts/).
 
 **Step 4: Check the results**
 
