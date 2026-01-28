@@ -46,6 +46,9 @@ class PairedCaptionDataset(data.Dataset):
 
 
         assert len(self.lr_list) == len(self.gt_list)
+        print(len(self.lr_list))
+        print(len(self.gt_list))
+        print(len(self.prompt_embeds_path_list))
         assert len(self.lr_list) == len(self.prompt_embeds_path_list)
 
         self.img_preproc = transforms.Compose([       

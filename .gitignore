@@ -21,6 +21,7 @@ dit4sr_f
 dit4sr_q
 llava_ckpt
 stable-diffusion-3.5-medium
+experiments
 
 latent_diffusion.egg-info
 

@@ -38,7 +38,8 @@ vae = AutoencoderKL.from_pretrained('preset/models/stable-diffusion-3.5-medium',
 vae.requires_grad_(False)
 vae.to(device)
 
-for img_name in tqdm(img_name_list[args.start_num:args.end_num]):
+# for img_name in tqdm(img_name_list[args.start_num:args.end_num]):
+for img_name in tqdm(img_name_list):
     if os.path.exists(os.path.join(img_save_folder, img_name.replace('png', 'pt'))):
         continue
     img_path = os.path.join(img_folder, img_name)
