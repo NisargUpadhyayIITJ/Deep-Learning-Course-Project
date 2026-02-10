@@ -1,24 +1,31 @@
 #!/bin/bash
 # DiT4SR Full Pipeline: Inference + Evaluation
 # Runs inference on test datasets and computes metrics
+# Supports resume: will skip already-processed images automatically
 
 set -e  # Exit on error
 
 # Configuration
-CHECKPOINT="${1:-experiments/dit4sr_wandb/checkpoint-10000/transformer}"
+CHECKPOINT="${1:-experiments/dit4sr_custom_dataset/checkpoint-180000}"
 PRETRAINED_MODEL="preset/models/stable-diffusion-3.5-medium"
-OUTPUT_BASE="results/eval_$(date +%Y%m%d_%H%M%S)"
+
+# Use fixed output directory for resume capability
+# Pass custom output dir as second argument, or use default "eval_latest"
+OUTPUT_BASE="${2:-results/eval_custom_dataset}"
 
 echo "=========================================="
-echo "DiT4SR Full Pipeline"
+echo "DiT4SR Full Pipeline (with Resume Support)"
 echo "=========================================="
 echo "Checkpoint: $CHECKPOINT"
 echo "Output Base: $OUTPUT_BASE"
+echo "Resume: Enabled (will skip existing images)"
 echo "=========================================="
 
 # Datasets to evaluate
 DATASETS=("DrealSR_CenterCrop" "RealSR_CenterCrop" "RealLR200" "RealLQ250")
 PROMPT_DIRS=("DrealSRVal_crop128" "RealSRVal_crop128" "RealLR200" "RealLQ250")
+# DATASETS=("RealLR200")
+# PROMPT_DIRS=("RealLR200")
 
 # Run inference on each dataset
 for i in "${!DATASETS[@]}"; do

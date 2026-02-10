@@ -226,8 +226,14 @@ Examples:
     parser.add_argument(
         "--sr_dir",
         type=str,
-        required=True,
-        help="Directory containing super-resolved images"
+        default=None,
+        help="Directory containing super-resolved images (use with --dataset for single dataset)"
+    )
+    parser.add_argument(
+        "--base_dir",
+        type=str,
+        default=None,
+        help="Base directory containing per-dataset folders (e.g., results/eval_latest)"
     )
     parser.add_argument(
         "--dataset",
@@ -276,15 +282,49 @@ Examples:
     
     args = parser.parse_args()
     
-    # Determine datasets to evaluate
-    if args.dataset == "all":
-        datasets = get_all_dataset_names()
+    # Validate arguments
+    if args.base_dir is None and args.sr_dir is None:
+        parser.error("Either --sr_dir or --base_dir must be specified")
+    
+    # Folder name to dataset name mapping
+    FOLDER_TO_DATASET = {
+        "DrealSR_CenterCrop": "DrealSR",
+        "RealSR_CenterCrop": "RealSR",
+        "RealLR200": "RealLR200",
+        "RealLQ250": "RealLQ250",
+    }
+    
+    # Determine datasets and their SR directories
+    if args.base_dir:
+        # Discover datasets from base_dir
+        datasets = []
+        sr_dirs = {}
+        for folder, dataset in FOLDER_TO_DATASET.items():
+            sr_path = os.path.join(args.base_dir, folder, "sample00")
+            if os.path.isdir(sr_path):
+                datasets.append(dataset)
+                sr_dirs[dataset] = sr_path
+                print(f"Found: {folder} -> {dataset}")
+            else:
+                print(f"Skipping: {folder} (not found at {sr_path})")
+        
+        if not datasets:
+            print("Error: No dataset folders found in base_dir")
+            return
     else:
-        datasets = [args.dataset]
+        # Single sr_dir mode (original behavior)
+        if args.dataset == "all":
+            datasets = get_all_dataset_names()
+        else:
+            datasets = [args.dataset]
+        sr_dirs = {d: args.sr_dir for d in datasets}
     
     print(f"\nDiT4SR Evaluation")
     print(f"=" * 60)
-    print(f"SR Directory: {args.sr_dir}")
+    if args.base_dir:
+        print(f"Base Directory: {args.base_dir}")
+    else:
+        print(f"SR Directory: {args.sr_dir}")
     print(f"Datasets: {datasets}")
     print(f"Device: {args.device}")
     if args.max_images:
@@ -314,8 +354,10 @@ Examples:
             lpips_model = None
         
         try:
+            # Get the SR directory for this dataset
+            dataset_sr_dir = sr_dirs[dataset]
             results = evaluate_dataset(
-                args.sr_dir,
+                dataset_sr_dir,
                 dataset,
                 metrics_calc,
                 max_images=args.max_images,

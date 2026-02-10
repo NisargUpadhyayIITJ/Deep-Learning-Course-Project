@@ -5,11 +5,11 @@
 
 set -e
 
-BASE_DIR="preset/datasets/train_datasets"
+BASE_DIR="preset/datasets/custom_train_datasets"
 MERGE_DIR="$BASE_DIR/merge_train"
 
 # Source datasets to merge
-DATASETS=("DIV2K" "DIV8K" "FFHQ" "Flickr2K" "Flickr8K" "NKUSR8K")
+DATASETS=("ISRDataset" "ISRUnsplash" "unsplashLite5K")
 
 echo "=========================================="
 echo "Merging Training Datasets"

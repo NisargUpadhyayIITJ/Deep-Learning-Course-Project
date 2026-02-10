@@ -3,7 +3,7 @@
 # This script launches training with comprehensive logging
 
 # Set GPU (modify as needed)
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 # WandB configuration (optional - uncomment and set your key)
 # export WANDB_API_KEY="your_key_here"
@@ -11,7 +11,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 # Training configuration
 PRETRAINED_MODEL="preset/models/stable-diffusion-3.5-medium"
-OUTPUT_DIR="./experiments/dit4sr_wandb"
+OUTPUT_DIR="./experiments/dit4sr"
 TRAIN_DATA="preset/datasets/train_datasets/merge_train"
 
 # Optional: Resume from checkpoint
@@ -30,8 +30,8 @@ accelerate launch train/train_dit4sr_wandb.py \
     --gradient_accumulation_steps=2 \
     --null_text_ratio=0.2 \
     --dataloader_num_workers=0 \
-    --checkpointing_steps=1000 \
-    --checkpoints_total_limit=5 \
+    --checkpointing_steps=5000 \
+    --checkpoints_total_limit=3 \
     --num_train_epochs=1000 \
     --log_every_n_steps=10 \
     --log_grad_norm \

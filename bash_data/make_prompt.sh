@@ -9,9 +9,10 @@
 # The original liuhaotian format (llava-v1.5-13b) is NOT supported
 # source /home/b23cs1037/DN/nisarg/DL-Project/dit_venv/bin/activate
 
-CUDA_VISIBLE_DEVICES=3 python utils_data/make_prompt_vllm.py \
-    --img_dir preset/datasets/train_datasets/FFHQ/gt \
-    --save_dir preset/datasets/train_datasets/FFHQ/prompt \
+CUDA_VISIBLE_DEVICES=1 python utils_data/make_prompt_vllm.py \
+    --img_dir preset/datasets/custom_train_datasets/unsplashLite5K/gt \
+    --save_dir preset/datasets/custom_train_datasets/unsplashLite5K/prompt \
     --batch_size 16 \
-    --model_path llava-hf/llava-1.5-13b-hf
+    --model_path llava-hf/llava-1.5-13b-hf \
+    --gpu_memory_utilization 0.9
     # --tensor_parallel_size 2 \

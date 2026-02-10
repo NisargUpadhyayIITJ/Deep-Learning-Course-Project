@@ -222,8 +222,29 @@ def main(args):
         else:
             image_names = [args.image_path]
 
+        # Resume functionality: track skipped and processed counts
+        skipped_count = 0
+        processed_count = 0
+        total_images = len(image_names)
+
         for image_idx, image_name in enumerate(image_names[:]):
-            print(f'================== process {image_idx} imgs... ===================')
+            name, ext = os.path.splitext(os.path.basename(image_name))
+            
+            # Check if all sample outputs already exist (for resume functionality)
+            if args.resume:
+                all_samples_exist = True
+                for sample_idx in range(args.sample_times):
+                    output_path = f'{args.output_dir}/sample{str(sample_idx).zfill(2)}/{name}.png'
+                    if not os.path.exists(output_path):
+                        all_samples_exist = False
+                        break
+                
+                if all_samples_exist:
+                    print(f'[SKIP] {image_idx+1}/{total_images}: {name} already exists')
+                    skipped_count += 1
+                    continue
+            
+            print(f'================== process {image_idx+1}/{total_images} imgs... ===================')
             validation_image = Image.open(image_name).convert("RGB")
             validation_prompt = process_llava(validation_image)
             validation_prompt += ' ' + args.added_prompt # clean, extremely detailed, best quality, sharp, clean
@@ -278,10 +299,17 @@ def main(args):
 
                 if resize_flag: 
                     image = image.resize((ori_width*rscale, ori_height*rscale), Image.BICUBIC)
-                    
-                name, ext = os.path.splitext(os.path.basename(image_name))
                 
                 image.save(f'{args.output_dir}/sample{str(sample_idx).zfill(2)}/{name}.png')
+            
+            processed_count += 1
+        
+        # Print summary
+        print(f'\n========== Summary ==========')
+        print(f'Total images: {total_images}')
+        print(f'Skipped (already exist): {skipped_count}')
+        print(f'Processed: {processed_count}')
+        print(f'==============================')
                 # image.save(f'{args.output_dir}/sample{str(sample_idx).zfill(2)}_{name}.png')
     
 if __name__ == "__main__":
@@ -312,6 +340,10 @@ if __name__ == "__main__":
     parser.add_argument("--align_method", type=str, choices=['wavelet', 'adain', 'nofix'], default='adain')
     parser.add_argument("--start_point", type=str, choices=['lr', 'noise'], default='noise') # LR Embedding Strategy, choose 'lr latent + 999 steps noise' as diffusion start point. 
     parser.add_argument("--save_prompts", action='store_true')
+    parser.add_argument("--resume", action='store_true', default=True,
+                        help="Skip images that have already been processed (default: True)")
+    parser.add_argument("--no-resume", dest='resume', action='store_false',
+                        help="Re-process all images even if outputs exist")
     parser.add_argument(
         "--revision",
         type=str,
