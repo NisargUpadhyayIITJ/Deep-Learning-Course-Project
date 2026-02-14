@@ -52,7 +52,7 @@ args_training_dataset['betap_range2'] = [1, 2]
 
 args_training_dataset['final_sinc_prob'] = 0.8
 
-args_training_dataset['use_hflip'] = True
+args_training_dataset['use_hflip'] = False
 args_training_dataset['use_rot'] = False
 
 train_dataset = RealESRGANDataset(args_training_dataset)

@@ -6,12 +6,12 @@
 set -e  # Exit on error
 
 # Configuration
-CHECKPOINT="${1:-experiments/dit4sr_custom_dataset/checkpoint-180000}"
+CHECKPOINT="${1:-experiments/dit4sr-replication-2/checkpoint-145000}"
 PRETRAINED_MODEL="preset/models/stable-diffusion-3.5-medium"
 
 # Use fixed output directory for resume capability
 # Pass custom output dir as second argument, or use default "eval_latest"
-OUTPUT_BASE="${2:-results/eval_custom_dataset}"
+OUTPUT_BASE="${2:-results/eval_dit4sr-replication-2}"
 
 echo "=========================================="
 echo "DiT4SR Full Pipeline (with Resume Support)"

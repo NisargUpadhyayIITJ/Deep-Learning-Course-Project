@@ -11,8 +11,8 @@ export CUDA_VISIBLE_DEVICES=3
 
 # Training configuration
 PRETRAINED_MODEL="preset/models/stable-diffusion-3.5-medium"
-OUTPUT_DIR="./experiments/dit4sr"
-TRAIN_DATA="preset/datasets/train_datasets/merge_train"
+OUTPUT_DIR="./experiments/dit4sr_novel"
+TRAIN_DATA="preset/datasets/novelty_train_dataset/SA_Text_OCR/"
 
 # Optional: Resume from checkpoint
 # RESUME_ARG="--resume_from_checkpoint latest"
@@ -23,7 +23,7 @@ accelerate launch train/train_dit4sr_wandb.py \
     --output_dir="$OUTPUT_DIR" \
     --root_folders="$TRAIN_DATA" \
     --report_to="wandb" \
-    --tracker_project_name="dit4sr-training" \
+    --tracker_project_name="dit4sr-novelty" \
     --mixed_precision="fp16" \
     --learning_rate=5e-5 \
     --train_batch_size=4 \
