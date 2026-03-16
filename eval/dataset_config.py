@@ -64,6 +64,13 @@ DATASET_CONFIGS: Dict[str, DatasetConfig] = {
         prompt_dir=os.path.join(PROMPTS_DIR, "RealLQ250"),
         has_gt=False,
     ),
+    "RealText": DatasetConfig(
+        name="RealText",
+        lq_dir=os.path.join(PRESET_DIR, "datasets", "novelty_test_dataset", "Real-Text", "lr"),
+        gt_dir=os.path.join(PRESET_DIR, "datasets", "novelty_test_dataset", "Real-Text", "gt"),
+        prompt_dir=os.path.join(PROMPTS_DIR, "RealText"),
+        has_gt=True,
+    ),
 }
 
 

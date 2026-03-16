@@ -292,6 +292,7 @@ Examples:
         "RealSR_CenterCrop": "RealSR",
         "RealLR200": "RealLR200",
         "RealLQ250": "RealLQ250",
+        "RealText": "RealText",
     }
     
     # Determine datasets and their SR directories

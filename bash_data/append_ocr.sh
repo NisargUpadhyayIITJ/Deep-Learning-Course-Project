@@ -7,8 +7,8 @@
 #       --trust-remote-code --gpu-memory-utilization 0.45
 
 python utils_data/append_ocr_to_prompts.py \
-    --img_dir preset/datasets/novelty_train_dataset/SA_Text/gt \
-    --prompt_dir preset/datasets/novelty_train_dataset/SA_Text/prompt \
+    --img_dir preset/datasets/novelty_train_dataset/SA-Text/gt \
+    --prompt_dir preset/datasets/novelty_train_dataset/SA-Text/prompt \
     --port 8000 \
     --model_name rednote-hilab/dots.ocr \
     --num_threads 16 \

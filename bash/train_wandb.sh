@@ -3,7 +3,7 @@
 # This script launches training with comprehensive logging
 
 # Set GPU (modify as needed)
-export CUDA_VISIBLE_DEVICES=3
+export CUDA_VISIBLE_DEVICES=1
 
 # WandB configuration (optional - uncomment and set your key)
 # export WANDB_API_KEY="your_key_here"

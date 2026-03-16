@@ -11,7 +11,8 @@ in sync.
 Usage:
     python utils_data/filter_ocr_dataset.py \
         --src_dir preset/datasets/novelty_train_dataset/SA_Text \
-        --dst_dir preset/datasets/novelty_train_dataset/SA_Text_OCR
+        --dst_dir preset/datasets/novelty_train_dataset/SA_Text_OCR \
+        --copy  # (optional) copy files instead of symlinking
 """
 
 import os
@@ -22,6 +23,7 @@ from tqdm import tqdm
 OCR_SEPARATOR = " OCR Text: "
 SUBDIRS = ["gt", "lr", "latent_hr", "latent_lr", "prompt", "sr_bicubic",
            "prompt_embeds", "pooled_prompt_embeds"]
+# SUBDIRS = ["gt", "lr", "prompt"]
 
 
 def has_nonempty_ocr(prompt_path):
