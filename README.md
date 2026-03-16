@@ -144,6 +144,41 @@ Use the following command to start the training process:
 bash bash/train.sh
 ```
 
+## :rocket: Upload Experiments To Hugging Face
+
+The helper below uploads existing checkpoints from `experiments/` to the Hugging Face Hub. By default it picks the latest `checkpoint-*` directory from each experiment and uploads only the publishable `transformer/` files, not the optimizer or scaler state.
+
+1. Authenticate with Hugging Face:
+
+```bash
+huggingface-cli login
+```
+
+2. Preview what will be uploaded:
+
+```bash
+python utils/upload_experiments_to_hf.py \
+    --repo-mode split \
+    --namespace <your-hf-user-or-org> \
+    --repo-name dit4sr-replication=replication \
+    --repo-name dit4sr_custom_dataset=custom-dataset \
+    --repo-name dit4sr_novel=novel-text-conditioned \
+    --dry-run
+```
+
+3. Run the real upload:
+
+```bash
+python utils/upload_experiments_to_hf.py \
+    --repo-mode split \
+    --namespace <your-hf-user-or-org> \
+    --repo-name dit4sr-replication=replication \
+    --repo-name dit4sr_custom_dataset=custom-dataset \
+    --repo-name dit4sr_novel=novel-text-conditioned
+```
+
+If you want a specific checkpoint instead of the latest one, add `--checkpoint checkpoint-150000`. If you also want optimizer and scheduler files, add `--include-training-state`.
+
 
 ## 📜 License
 

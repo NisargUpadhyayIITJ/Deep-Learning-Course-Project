@@ -1,9 +1,9 @@
 import gradio as gr
-from typing import List
 import argparse
 import sys
 import os
 import glob
+import traceback
 sys.path.append(os.getcwd())
 from llava.llm_agent import LLavaAgent
 from PIL import Image
@@ -11,7 +11,6 @@ from CKPT_PTH import LLAVA_MODEL_PATH
 import re
 
 import numpy as np
-from PIL import Image
 
 import torch
 from pytorch_lightning import seed_everything
@@ -28,30 +27,39 @@ from utils.wavelet_color_fix import adain_color_fix
 from torchvision import transforms
 from model_dit4sr.transformer_sd3 import SD3Transformer2DModel
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--pretrained_model_name_or_path", type=str, default='preset/models/stable-diffusion-3.5-medium')
-parser.add_argument("--transformer_model_name_or_path", type=str, default='preset/models/dit4sr_f')
-parser.add_argument("--mixed_precision", type=str, default="fp16") # no/fp16/bf16
-parser.add_argument("--process_size", type=int, default=512)
-parser.add_argument("--vae_decoder_tiled_size", type=int, default=224) # latent size, for 24G
-parser.add_argument("--vae_encoder_tiled_size", type=int, default=1024) # image size, for 13G
-parser.add_argument("--latent_tiled_size", type=int, default=64) 
-parser.add_argument("--latent_tiled_overlap", type=int, default=16) 
-parser.add_argument("--start_point", type=str, choices=['lr', 'noise'], default='noise') # LR Embedding Strategy, choose 'lr latent + 999 steps noise' as diffusion start point. 
-parser.add_argument(
-    "--revision",
-    type=str,
-    default=None,
-    required=False,
-    help="Revision of pretrained model identifier from huggingface.co/models.",
-)
-parser.add_argument(
-    "--variant",
-    type=str,
-    default=None,
-    help="Variant of the model files of the pretrained model identifier from huggingface.co/models, 'e.g.' fp16",
-)
-args = parser.parse_args()
+args = None
+llava_agent = None
+pipeline = None
+LLaVA_device = None
+dit4sr_device = None
+BICUBIC_RESAMPLE = getattr(getattr(Image, "Resampling", Image), "BICUBIC")
+
+
+def build_arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pretrained_model_name_or_path", type=str, default='preset/models/stable-diffusion-3.5-medium')
+    parser.add_argument("--transformer_model_name_or_path", type=str, default='preset/models/dit4sr_f')
+    parser.add_argument("--mixed_precision", type=str, default="fp16") # no/fp16/bf16
+    parser.add_argument("--process_size", type=int, default=512)
+    parser.add_argument("--vae_decoder_tiled_size", type=int, default=224) # latent size, for 24G
+    parser.add_argument("--vae_encoder_tiled_size", type=int, default=1024) # image size, for 13G
+    parser.add_argument("--latent_tiled_size", type=int, default=64)
+    parser.add_argument("--latent_tiled_overlap", type=int, default=16)
+    parser.add_argument("--start_point", type=str, choices=['lr', 'noise'], default='noise') # LR Embedding Strategy, choose 'lr latent + 999 steps noise' as diffusion start point.
+    parser.add_argument(
+        "--revision",
+        type=str,
+        default=None,
+        required=False,
+        help="Revision of pretrained model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--variant",
+        type=str,
+        default=None,
+        help="Variant of the model files of the pretrained model identifier from huggingface.co/models, 'e.g.' fp16",
+    )
+    return parser
 
 # Copied from dreambooth sd3 example
 def import_model_class_from_model_name_or_path(
@@ -164,6 +172,14 @@ def load_dit4sr_pipeline(args, device):
 
     return validation_pipeline
 
+
+def resolve_devices():
+    if torch.cuda.device_count() >= 2:
+        return 'cuda:0', 'cuda:1'
+    if torch.cuda.device_count() == 1:
+        return 'cuda:0', 'cuda:0'
+    raise RuntimeError('Currently support CUDA only.')
+
 def remove_focus_sentences(text):
     # 使用正则表达式按照 . ? ! 分割，并且保留分隔符本身
     # re.split(pattern, string) 如果 pattern 中带有捕获组()，分隔符也会保留在结果列表中
@@ -197,24 +213,13 @@ def remove_focus_sentences(text):
     # 根据需要选择如何重新拼接；这里去掉多余空格并直接拼接
     return "".join(filtered_sentences).strip()
 
-
-if torch.cuda.device_count() >= 2:
-    LLaVA_device = 'cuda:0'
-    dit4sr_device = 'cuda:1'
-elif torch.cuda.device_count() == 1:
-    LLaVA_device = 'cuda:0'
-    dit4sr_device = 'cuda:0'
-else:
-    raise ValueError('Currently support CUDA only.')
-
-llava_agent = LLavaAgent(LLAVA_MODEL_PATH, LLaVA_device, load_8bit=True, load_4bit=False)
-
-# Get the validation pipeline
-pipeline = load_dit4sr_pipeline(args, dit4sr_device)
-
 @torch.no_grad()
 def process_llava(
     input_image):
+    if input_image is None:
+        raise ValueError("Please upload an input image before running LLaVA.")
+    if llava_agent is None:
+        raise RuntimeError("LLaVA agent is not initialized.")
     llama_prompt = llava_agent.gen_image_caption([input_image])[0]
     llama_prompt = remove_focus_sentences(llama_prompt)
     return llama_prompt
@@ -230,18 +235,32 @@ def process_sr(
     scale_factor: int,
     cfg_scale: float,
     seed: int,
-    ) -> List[np.ndarray]:
-    process_size = 512
+    ) -> tuple[np.ndarray, np.ndarray]:
+    if input_image is None:
+        raise ValueError("Please upload an input image before running DiT4SR.")
+    if pipeline is None or args is None or dit4sr_device is None:
+        raise RuntimeError("DiT4SR pipeline is not initialized.")
+
+    process_size = args.process_size
     resize_preproc = transforms.Compose([
         transforms.Resize(process_size, interpolation=transforms.InterpolationMode.BILINEAR),
     ])
 
+    num_inference_steps = int(num_inference_steps)
+    cfg_scale = float(cfg_scale)
+    scale_factor = max(1, int(scale_factor))
+    if seed is None or int(seed) < 0:
+        seed = int(torch.randint(0, 2**31 - 1, (1,)).item())
+    else:
+        seed = int(seed)
+
     seed_everything(seed)
-    generator = torch.Generator(device='cuda:0')
+    generator = torch.Generator(device=dit4sr_device)
     generator.manual_seed(seed)
 
-    validation_prompt = f"{user_prompt} {positive_prompt}"
+    validation_prompt = f"{user_prompt or ''} {positive_prompt or ''}".strip()
 
+    original_input = input_image.copy()
     ori_width, ori_height = input_image.size
     resize_flag = False
 
@@ -254,8 +273,6 @@ def process_sr(
     input_image = input_image.resize((input_image.size[0] // 8 * 8, input_image.size[1] // 8 * 8))
     width, height = input_image.size
     resize_flag = True  #
-
-    images = []
 
     weight_dtype = torch.float32
     if args.mixed_precision == "fp16":
@@ -277,10 +294,12 @@ def process_sr(
         if resize_flag:
             image = image.resize((ori_width * rscale, ori_height * rscale))
     except Exception as e:
-        print(e)
+        print(f"DiT4SR inference failed: {e}")
+        traceback.print_exc()
         image = Image.new(mode="RGB", size=(512, 512))
-    images.append(np.array(image))
-    return images
+
+    comparison_before = original_input.resize(image.size, BICUBIC_RESAMPLE)
+    return np.array(comparison_before), np.array(image)
 
 
 
@@ -296,54 +315,99 @@ Prompt= \
 """
 First, click \"Run LLAVA\" to generate an initial prompt based on the input image. \\
 Then, modify the prompt for higher accuracy. \\
-Finally, click \"Run DiT4SR\" to generate the SR result." \
+Finally, click \"Run DiT4SR\" to generate the SR result.
 """
 
-exaple_images = sorted(glob.glob('examples/*.png'))
-block = gr.Blocks().queue()
-with block:
-    with gr.Row():
-        gr.Markdown(Intro)
-    with gr.Row():
-        with gr.Column():
-            input_image = gr.Image(source="upload", type="pil")
-            user_prompt = gr.Textbox(label="User Prompt", value="")
-            
-            with gr.Accordion("Options", open=False):
-                positive_prompt = gr.Textbox(label="Positive Prompt", value='Cinematic, perfect without deformations, ultra HD, '
-                        'camera, detailed photo, realistic maximum, 32k, Color.')
-                negative_prompt = gr.Textbox(
-                    label="Negative Prompt",
-                    value='motion blur, noisy, dotted, pointed, deformed, lowres, chaotic'
-                        'CG Style, 3D render, unreal engine, blurring, dirty, messy, '
-                        'worst quality, low quality, watermark, signature, jpeg artifacts. '
-                )
-                cfg_scale = gr.Slider(label="Classifier Free Guidance Scale (Set a value larger than 1 to enable it!)", minimum=0.1, maximum=10.0, value=7.0, step=0.1)
-                num_inference_steps = gr.Slider(label="Inference Steps", minimum=10, maximum=100, value=20, step=1)
-                seed = gr.Slider(label="Seed", minimum=-1, maximum=2147483647, step=1, value=0)
-                scale_factor = gr.Number(label="SR Scale", value=4)
-            gr.Examples(examples=exaple_images, inputs=[input_image])
-        with gr.Column():
-            result_gallery = gr.Gallery(label="Output", show_label=False, elem_id="gallery").style(grid=1)
-            with gr.Row():
-                run_llava_button = gr.Button(value="Run LLAVA", label="Run LLAVA")
-                run_sr_button = gr.Button(value="Run DiT4SR", label="Run DiT4SR")
-            gr.Markdown(Prompt)
-    
-        
+example_images = sorted(glob.glob('examples/*.png'))
 
-    inputs = [
-        input_image,
-        user_prompt,
-        positive_prompt,
-        negative_prompt,
-        num_inference_steps,
-        scale_factor,
-        cfg_scale,
-        seed,
-    ]
 
-    run_llava_button.click(fn=process_llava, inputs=[input_image], outputs=[user_prompt])
-    run_sr_button.click(fn=process_sr, inputs=inputs, outputs=[result_gallery])
+def create_input_image_component():
+    image_kwargs = {
+        "label": "Input Image",
+        "type": "pil",
+    }
+    try:
+        return gr.Image(sources=["upload"], **image_kwargs)
+    except TypeError:
+        return gr.Image(source="upload", **image_kwargs)
 
-block.launch()
+
+def create_comparison_slider():
+    slider_kwargs = {
+        "label": "Before / After SR",
+        "elem_id": "comparison-slider",
+        "type": "numpy",
+        "show_label": True,
+        "interactive": False,
+    }
+    try:
+        return gr.ImageSlider(**slider_kwargs)
+    except AttributeError as exc:
+        raise RuntimeError(
+            "This Gradio version does not provide gr.ImageSlider. "
+            "Please upgrade Gradio to a version that includes ImageSlider."
+        ) from exc
+
+
+def build_demo():
+    with gr.Blocks(title="DiT4SR") as demo:
+        with gr.Row():
+            gr.Markdown(Intro)
+        with gr.Row():
+            with gr.Column():
+                input_image = create_input_image_component()
+                user_prompt = gr.Textbox(label="User Prompt", value="")
+
+                with gr.Accordion("Options", open=False):
+                    positive_prompt = gr.Textbox(label="Positive Prompt", value='Cinematic, perfect without deformations, ultra HD, '
+                            'camera, detailed photo, realistic maximum, 32k, Color.')
+                    negative_prompt = gr.Textbox(
+                        label="Negative Prompt",
+                        value='motion blur, noisy, dotted, pointed, deformed, lowres, chaotic'
+                            'CG Style, 3D render, unreal engine, blurring, dirty, messy, '
+                            'worst quality, low quality, watermark, signature, jpeg artifacts. '
+                    )
+                    cfg_scale = gr.Slider(label="Classifier Free Guidance Scale (Set a value larger than 1 to enable it!)", minimum=0.1, maximum=10.0, value=7.0, step=0.1)
+                    num_inference_steps = gr.Slider(label="Inference Steps", minimum=10, maximum=100, value=20, step=1)
+                    seed = gr.Slider(label="Seed (-1 for random)", minimum=-1, maximum=2147483647, step=1, value=-1)
+                    scale_factor = gr.Number(label="SR Scale", value=4, precision=0)
+                gr.Examples(examples=[[image_path] for image_path in example_images], inputs=input_image)
+            with gr.Column():
+                comparison_slider = create_comparison_slider()
+                with gr.Row():
+                    run_llava_button = gr.Button(value="Run LLAVA")
+                    run_sr_button = gr.Button(value="Run DiT4SR")
+                gr.Markdown(Prompt)
+
+        inputs = [
+            input_image,
+            user_prompt,
+            positive_prompt,
+            negative_prompt,
+            num_inference_steps,
+            scale_factor,
+            cfg_scale,
+            seed,
+        ]
+
+        run_llava_button.click(fn=process_llava, inputs=[input_image], outputs=[user_prompt])
+        run_sr_button.click(fn=process_sr, inputs=inputs, outputs=[comparison_slider])
+    return demo
+
+
+def main():
+    global args, llava_agent, pipeline, LLaVA_device, dit4sr_device
+
+    parser = build_arg_parser()
+    args, _ = parser.parse_known_args()
+
+    LLaVA_device, dit4sr_device = resolve_devices()
+    llava_agent = LLavaAgent(LLAVA_MODEL_PATH, LLaVA_device, load_8bit=True, load_4bit=False)
+    pipeline = load_dit4sr_pipeline(args, dit4sr_device)
+
+    demo = build_demo()
+    demo.queue().launch()
+
+
+if __name__ == "__main__":
+    main()

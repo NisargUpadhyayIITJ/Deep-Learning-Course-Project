@@ -10,8 +10,8 @@ in sync.
 
 Usage:
     python utils_data/filter_ocr_dataset.py \
-        --src_dir preset/datasets/novelty_train_dataset/SA_Text \
-        --dst_dir preset/datasets/novelty_train_dataset/SA_Text_OCR \
+        --src_dir preset/datasets/novelty_train_dataset/SA-Text \
+        --dst_dir preset/datasets/novelty_train_dataset/SA-Text-Filtered \
         --copy  # (optional) copy files instead of symlinking
 """
 
