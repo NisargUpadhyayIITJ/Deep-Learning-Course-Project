@@ -241,20 +241,28 @@ def build_front_matter(args: argparse.Namespace) -> str:
 
 def build_split_readme(repo_id: str, selection: UploadSelection, args: argparse.Namespace) -> str:
     front_matter = build_front_matter(args)
+    title = selection.experiment_name.replace("_", " ").replace("-", " ").title()
     return (
         f"{front_matter}"
-        f"# {selection.experiment_name}\n\n"
-        f"This repository contains the `{selection.source_name}` export from the local DiT4SR experiment "
-        f"`{selection.experiment_name}`.\n\n"
+        f"# {title}\n\n"
+        f"This repository contains a published DiT4SR transformer checkpoint exported from the local experiment "
+        f"`{selection.experiment_name}` at `{selection.source_name}`.\n\n"
+        f"## What This Repo Contains\n\n"
+        f"This Hub repo stores only the DiT4SR transformer weights needed by `SD3Transformer2DModel`. "
+        f"It does not contain the full SD3 base model, tokenizers, or the rest of the DiT4SR inference pipeline.\n\n"
         f"## Included files\n\n"
         f"- `transformer/` contains the publishable model weights and config.\n"
         f"- `source_checkpoint.json` records the local source path and checkpoint name used for the upload.\n\n"
-        f"## Loading\n\n"
+        f"## Loading In DiT4SR\n\n"
         f"```python\n"
         f"from model_dit4sr.transformer_sd3 import SD3Transformer2DModel\n\n"
         f"model = SD3Transformer2DModel.from_pretrained(\"{repo_id}\", subfolder=\"transformer\")\n"
         f"```\n\n"
-        f"You still need the rest of the DiT4SR codebase and the base SD3 assets described in this repository's README.\n"
+        f"You still need the rest of the DiT4SR codebase and the base SD3 assets described in the project README.\n\n"
+        f"## Notes\n\n"
+        f"- Export source: `{selection.experiment_name}`\n"
+        f"- Uploaded checkpoint: `{selection.source_name}`\n"
+        f"- Published artifact type: `transformer` weights only\n"
     )
 
 
@@ -263,7 +271,7 @@ def build_single_readme(repo_id: str, selections: list[UploadSelection], args: a
     lines = [
         f"{front_matter}# DiT4SR Experiment Exports",
         "",
-        f"This repository aggregates selected DiT4SR experiment checkpoints from the local `{args.experiments_root}` directory.",
+        f"This repository aggregates selected DiT4SR transformer exports from the local `{args.experiments_root}` directory.",
         "",
         "## Included checkpoints",
         "",
@@ -288,6 +296,8 @@ def build_single_readme(repo_id: str, selections: list[UploadSelection], args: a
             "```",
             "",
             "Swap the `subfolder` value for whichever exported experiment you want to load.",
+            "",
+            "Each exported checkpoint contains only the publishable `transformer/` weights, not the full base pipeline.",
         ]
     )
     return "\n".join(lines)

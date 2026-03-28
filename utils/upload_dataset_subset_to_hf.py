@@ -82,7 +82,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help=(
             "Optional local staging directory used to build a large-folder upload tree. "
-            "Defaults to `.hf_upload_staging/<repo>/<subset>` in the current repo."
+            "Defaults to `.hf_upload_staging/<repo>` next to the dataset."
         ),
     )
     parser.add_argument(
@@ -206,20 +206,32 @@ def build_manifest(subset: str, pair_records: list[PairRecord]) -> bytes:
 
 
 def build_readme(repo_id: str, subset: str, count: int, args: argparse.Namespace) -> bytes:
-    front_matter = ["---", "pretty_name: ISR", "task_categories:", "- image-to-text", "- image-classification"]
+    front_matter = ["---", "pretty_name: DiT4SR Dataset Collection", "task_categories:", "- image-to-text", "- image-classification"]
     if args.license:
         front_matter.append(f"license: {args.license}")
     front_matter.extend(["---", ""])
     body = [
-        f"# ISR Dataset",
+        f"# DiT4SR Dataset Collection",
         "",
-        f"This dataset repo contains the `{subset}` subset uploaded from the local DiT4SR training data.",
+        "This dataset repo collects DiT4SR training and evaluation assets under top-level subtrees inside a single Hugging Face dataset repository.",
         "",
-        "## Included paths",
+        f"The most recent upload refreshed the `{subset}` subtree.",
+        "",
+        "## Training subset layout",
         "",
         f"- `{subset}/gt/<shard>/` contains GT images split across shard directories.",
         f"- `{subset}/prompt/<shard>/` contains paired prompt text files split across shard directories.",
-        f"- `{subset}/manifest.jsonl` records the image and prompt file mapping for {count} pairs.",
+        f"- `{subset}/manifest.jsonl` records the image and prompt file mapping for {count} pairs in this upload.",
+        "",
+        "## Repo layout",
+        "",
+        "- `Replication/`, `CustomDataset/`, and `NovelTextConditioned/` are used for training subsets.",
+        "- `Evaluation/` can be used for benchmark inputs, prompts, and curated test assets.",
+        "- `Results/` can be used for evaluation outputs and qualitative comparisons.",
+        "",
+        "## Manifest format",
+        "",
+        "Each line in `manifest.jsonl` is a JSON object with `id`, `image_file`, `prompt_file`, and `shard` fields.",
         "",
         "## Notes",
         "",
@@ -228,10 +240,9 @@ def build_readme(repo_id: str, subset: str, count: int, args: argparse.Namespace
     return ("\n".join(front_matter + body) + "\n").encode("utf-8")
 
 
-def default_staging_dir(base_dir: Path, repo_id: str, subset: str) -> Path:
+def default_staging_dir(base_dir: Path, repo_id: str) -> Path:
     repo_token = repo_id.replace("/", "__")
-    subset_token = subset.replace("/", "__")
-    return base_dir / ".hf_upload_staging" / repo_token / subset_token
+    return base_dir / ".hf_upload_staging" / repo_token
 
 
 def hardlink_file(source: Path, destination: Path) -> None:
@@ -275,6 +286,20 @@ def stage_subset(
     return staging_dir
 
 
+def clear_upload_large_folder_cache(staging_dir: Path, subset: str) -> None:
+    upload_cache_root = staging_dir / ".cache" / "huggingface" / "upload"
+    subset_cache = upload_cache_root / subset
+    if subset_cache.exists():
+        shutil.rmtree(subset_cache)
+
+    # README tracking can also become stale when the repo tree is rebuilt.
+    for readme_cache in upload_cache_root.glob("README.md*"):
+        if readme_cache.is_dir():
+            shutil.rmtree(readme_cache)
+        else:
+            readme_cache.unlink()
+
+
 def main() -> None:
     args = parse_args()
     if not args.dry_run and not args.token:
@@ -291,7 +316,7 @@ def main() -> None:
     staging_dir = (
         Path(args.staging_dir).expanduser()
         if args.staging_dir
-        else default_staging_dir(gt_dir.parent, repo_id, subset)
+        else default_staging_dir(gt_dir.parent, repo_id)
     )
 
     if args.clear_remote_subset and args.confirm_clear_subset != subset:
@@ -344,6 +369,7 @@ def main() -> None:
             path_in_repo=subset,
             commit_message=f"Remove remote subset {subset} before re-upload",
         )
+        clear_upload_large_folder_cache(staging_dir, subset)
     api.upload_large_folder(
         repo_id=repo_id,
         repo_type="dataset",
