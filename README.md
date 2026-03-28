@@ -17,10 +17,10 @@ Unlike the original upstream repository, this repo is documented as a project wo
 
 - Paper: https://arxiv.org/abs/2503.23580
 - GitHub repo: https://github.com/NisargUpadhyayIITJ/Deep-Learning-Course-Project
-- Course report: [report/report.pdf](report/report.pdf)
 - Reproduction W&B: https://wandb.ai/b23cs1075-indian-institute-of-technology-/dit4sr-training
-- Custom dataset W&B: https://wandb.ai/b23cs1075-indian-institute-of-technology-/dit4sr-custom-dataset?nw=nwuserb23cs1075
-- OCR novelty W&B: https://wandb.ai/b23cs1075-indian-institute-of-technology-/dit4sr-novelty?nw=nwuserb23cs1075
+- Custom dataset W&B: https://wandb.ai/b23cs1075-indian-institute-of-technology-/dit4sr-custom-dataset
+- OCR novelty W&B: https://wandb.ai/b23cs1075-indian-institute-of-technology-/dit4sr-novelty
+- Hugging Face repo: https://huggingface.co/datasets/NisargUpadhyay/ImageSuperResolution
 
 ## Project Summary
 
@@ -369,17 +369,17 @@ These are the main results currently committed under `results/` and summarized i
 
 ### Benchmark averages from local evaluation
 
-| Model | CLIPIQA | LIQE | LPIPS | MANIQA | MUSIQ |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Reproduction checkpoint-150k | 0.7024 | 4.2563 | 0.3789 | 0.4779 | 69.3684 |
-| Custom dataset checkpoint-190k | 0.7062 | 4.1765 | 0.3730 | 0.4743 | 68.9963 |
+| Model                          | CLIPIQA |   LIQE |  LPIPS | MANIQA |   MUSIQ |
+| ------------------------------ | ------: | -----: | -----: | -----: | ------: |
+| Reproduction checkpoint-150k   |  0.7024 | 4.2563 | 0.3789 | 0.4779 | 69.3684 |
+| Custom dataset checkpoint-190k |  0.7062 | 4.1765 | 0.3730 | 0.4743 | 68.9963 |
 
 ### RealText OCR ablation
 
-| Method | CLIPIQA | LIQE | LPIPS | MANIQA | MUSIQ |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Baseline prompt | 0.6727 | 4.4907 | 0.3810 | 0.5339 | 68.2013 |
-| OCR prompt | 0.6797 | 4.4217 | 0.3644 | 0.5433 | 66.6734 |
+| Method          | CLIPIQA |   LIQE |  LPIPS | MANIQA |   MUSIQ |
+| --------------- | ------: | -----: | -----: | -----: | ------: |
+| Baseline prompt |  0.6727 | 4.4907 | 0.3810 | 0.5339 | 68.2013 |
+| OCR prompt      |  0.6797 | 4.4217 | 0.3644 | 0.5433 | 66.6734 |
 
 Interpretation:
 
@@ -388,8 +388,6 @@ Interpretation:
 - The OCR novelty behaves like a targeted text-restoration enhancement rather than a universal boost on all no-reference metrics.
 
 ## Hugging Face Assets
-
-The workspace includes helper scripts used to publish project artifacts.
 
 ### Model repos
 
@@ -400,28 +398,6 @@ The workspace includes helper scripts used to publish project artifacts.
 ### Dataset repo
 
 - `NisargUpadhyay/ImageSuperResolution`
-
-The upload helpers are:
-
-- `utils/upload_experiments_to_hf.py`
-- `utils/upload_dataset_subset_to_hf.py`
-- `utils/upload_folder_tree_to_hf.py`
-
-## Known Repo-Specific Notes
-
-- Several bash scripts are examples with hard-coded local paths and GPU IDs. Review them before running.
-- `environment.yaml` does not include every optional dependency used by OCR, vLLM, and IQA evaluation.
-- `preset/`, `experiments/`, and large datasets are expected to exist locally and are not versioned here.
-- `test/test_wllava.py` and `test/test_wollava.py` have confusing names; the practical difference is "generate prompts with LLaVA" versus "use existing prompts."
-- The README in the upstream official repo does not match this project fork well; this file documents the current course-project workspace instead.
-
-## Report Assets
-
-The submission report and figure-generation utilities are in:
-
-- [report/report.tex](report/report.tex)
-- [report/report.pdf](report/report.pdf)
-- [report/build_report_figures.py](report/build_report_figures.py)
 
 ## Acknowledgements
 
